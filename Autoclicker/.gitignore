@@ -5,6 +5,7 @@ env/
 
 # Configurações de IDE (PyCharm, VSCode, etc.)
 .idea/
+.idea
 .vscode/
 
 # Arquivos de Compilação (PyInstaller) e Cache do Python
