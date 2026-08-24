@@ -36,12 +36,9 @@ Para baixar a versão compilada (pronta para usar, sem precisar instalar o Pytho
 
 Caso queira rodar diretamente do código fonte ou compilar você mesmo:
 
-1. Clone o repositório:
+1. Clone o repositório
 
-2. Execute o script principal:
-   ```bash
-   python autoclicker.py
-   ```
+2. Execute o script principal (`autoclicker.py`):
 
 3. **Bootstrap Mágico:** O script verificará se você possui `PyQt6`, `pynput`, `requests` e `pyinstaller`. Se não tiver, **ele vai perguntar se deseja instalar automaticamente**.
 4. **Auto-Compilador:** Após as dependências, o programa perguntará se você quer gerar o arquivo `.exe`. Se disser que sim, ele fará o build e salvará na pasta `dist/`.
