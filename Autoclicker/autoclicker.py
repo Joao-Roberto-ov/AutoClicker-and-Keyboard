@@ -97,7 +97,16 @@ from pynput import mouse, keyboard
 
 def key_to_str(key):
     if hasattr(key, 'name'): return f"Key.{key.name}"
-    if hasattr(key, 'char') and key.char: return key.char
+    if hasattr(key, 'char') and key.char:
+        # Se Ctrl (ou outro modificador) estava pressionado, o Windows traduz
+        # o caractere para um código de controle (ex: Ctrl+C vira '\x03').
+        # Nesse caso usamos o vk (tecla física) em vez do char resultante,
+        # senão o replay não reproduz o atalho corretamente.
+        if hasattr(key, 'vk') and key.vk is not None and ord(key.char) < 32:
+            return f"VK.{key.vk}"
+        return key.char
+    if hasattr(key, 'vk') and key.vk is not None:
+        return f"VK.{key.vk}"
     return str(key)
 
 
@@ -105,6 +114,8 @@ def str_to_key(key_str):
     try:
         if key_str.startswith("Key."):
             return getattr(keyboard.Key, key_str.split(".")[1])
+        if key_str.startswith("VK."):
+            return keyboard.KeyCode.from_vk(int(key_str.split(".")[1]))
         return keyboard.KeyCode.from_char(key_str)
     except Exception:
         return None
@@ -432,6 +443,22 @@ class MainWindow(QMainWindow):
         self.details_box.setStyleSheet("background-color: #1e1e1e; color: #00ff00; font-family: Consolas;")
         right_panel.addWidget(self.details_box)
 
+        # Painel de informações rápidas do macro
+        stats_panel = QHBoxLayout()
+
+        self.stats_count_label = QLabel("📊 Ações: 0")
+        self.stats_duration_label = QLabel("⏱️ Tempo: 0.0s")
+        self.stats_type_label = QLabel("🔧 Tipo: -")
+
+        for lbl in (self.stats_count_label, self.stats_duration_label, self.stats_type_label):
+            lbl.setStyleSheet("color: #cccccc; font-size: 11px; padding: 2px;")
+
+        stats_panel.addWidget(self.stats_count_label)
+        stats_panel.addWidget(self.stats_duration_label)
+        stats_panel.addWidget(self.stats_type_label)
+
+        right_panel.addLayout(stats_panel)
+
         self.status_label = QLabel("Status: Aguardando comandos...")
         self.status_label.setStyleSheet("font-weight: bold; color: #d35400;")
         right_panel.addWidget(self.status_label)
@@ -565,6 +592,7 @@ class MainWindow(QMainWindow):
         self.ui_events_log = ["--- Iniciando Gravação ---"]
         self.last_ui_event_type = None
         self.details_box.clear()
+        self.update_stats_panel([])
         self.status_label.setText("Preparando para gravar em 2 segundos...")
         QTimer.singleShot(2000, self.start_recording_actual)
 
@@ -613,6 +641,7 @@ class MainWindow(QMainWindow):
 
         first_time = events[0]['time']
         for e in events: e['time'] -= first_time
+        self.update_stats_panel(events)
 
         name, ok = QInputDialog.getText(self, "Salvar Macro", "Digite o nome para este macro:")
         if ok and name:
@@ -640,6 +669,7 @@ class MainWindow(QMainWindow):
         try:
             with open(os.path.join(self.current_macro_dir, f"{name}.json"), 'r', encoding='utf-8') as f:
                 events = json.load(f)
+            self.update_stats_panel(events)
             text = f"--- Carregado: {name} ---\n(Pronto para executar)\n\n"
             text += "\n".join(self.build_log_from_events(events))
             self.details_box.setPlainText(text)
@@ -670,6 +700,26 @@ class MainWindow(QMainWindow):
                 last_type = 'key'
             last_time = e['time']
         return log_lines
+
+    def update_stats_panel(self, events):
+        if not events:
+            self.stats_count_label.setText("📊 Ações: 0")
+            self.stats_duration_label.setText("⏱️ Tempo: 0.0s")
+            self.stats_type_label.setText("🔧 Tipo: -")
+            return
+
+        total = len(events)
+        duration = events[-1]['time']
+
+        tipos = {e['type'] for e in events}
+        partes = []
+        if 'click' in tipos: partes.append("🖱️ Clique")
+        if 'move' in tipos: partes.append("↗️ Mov.")
+        if 'key' in tipos: partes.append("⌨️ Tecla")
+
+        self.stats_count_label.setText(f"📊 Ações: {total}")
+        self.stats_duration_label.setText(f"⏱️ Tempo: {duration:.1f}s")
+        self.stats_type_label.setText(f"🔧 Tipo: {', '.join(partes) if partes else '-'}")
 
     def rename_macro(self):
         items = self.macro_list.selectedItems()
