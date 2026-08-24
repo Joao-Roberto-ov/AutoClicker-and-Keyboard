@@ -5,9 +5,9 @@ import json
 import shutil
 
 
-# -------------------------------------------------------------------
-# 1. BOOTSTRAP: VERIFICADOR DE AMBIENTE E AUTO-COMPILADOR
-# -------------------------------------------------------------------
+
+# bootstrap: verificador de ambiente e auto-compilador
+
 def is_running_as_exe():
     return getattr(sys, 'frozen', False)
 
@@ -56,7 +56,7 @@ def check_and_compile():
         else:
             sys.exit(0)
 
-    # AUTO-COMPILADOR DE .EXE
+    # auto-compilador do .exe
     exe_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist', 'AutoClicker.exe')
     if not os.path.exists(exe_path):
         root = tk.Tk()
@@ -80,9 +80,9 @@ def check_and_compile():
 
 check_and_compile()
 
-# -------------------------------------------------------------------
-# 2. IMPORTAÇÕES DA APLICAÇÃO PRINCIPAL
-# -------------------------------------------------------------------
+
+# importações do programa principal
+
 import time
 import threading
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
@@ -286,8 +286,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Auto Clicker & Keyboard - Perfeito 4.0")
 
-        # MUDANÇA: Substituído setFixedSize por resize (tamanho inicial)
-        # e setMinimumSize (limite antes do scroll agir de forma agressiva)
         self.resize(850, 600)
         self.setMinimumSize(450, 350)
 
@@ -317,10 +315,9 @@ class MainWindow(QMainWindow):
         self.setup_hotkeys()
 
     def setup_ui(self):
-        # MUDANÇA: Agora usamos QSplitter para redistribuir dinamicamente a tela
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # --- PAINEL ESQUERDO ---
+        # --- painel esquerdo ---
         left_widget = QWidget()
         left_panel = QVBoxLayout(left_widget)
         left_widget.setMinimumWidth(250)  # Garante que a lista não será esmagada totalmente
@@ -357,7 +354,7 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_delete)
         left_panel.addLayout(btn_layout)
 
-        # --- PAINEL DIREITO ---
+        # --- painel direito ---
         right_widget = QWidget()
         right_panel = QVBoxLayout(right_widget)
         right_widget.setMinimumWidth(350)  # Garante espaço útil pros botões de play
@@ -407,24 +404,23 @@ class MainWindow(QMainWindow):
         self.status_label.setStyleSheet("font-weight: bold; color: #d35400;")
         right_panel.addWidget(self.status_label)
 
-        # MUDANÇA: Adiciona os dois painéis criados ao Divisor (Splitter)
+        # Adicionado os dois painéis criados ao Splitter
         main_splitter.addWidget(left_widget)
         main_splitter.addWidget(right_widget)
 
-        # Define a proporção inicial de espaço (ex: lista pegando menos, área direita pegando mais)
+        # Definição da proporção inicial de espaço
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 2)
 
-        # MUDANÇA: Cria a barra de rolagem inteligente que engloba tudo
+        # barra de rolagem inteligente que engloba tudo
         scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)  # Faz os elementos preencherem todo espaço vazio possível
+        scroll_area.setWidgetResizable(True)  # Faz os elementos preencherem o maximo de espaço vazio possível
         scroll_area.setWidget(main_splitter)
         scroll_area.setStyleSheet("QScrollArea { border: none; }")  # Remove bordas de design indesejadas
 
         # Define a scroll area como o coração da janela
         self.setCentralWidget(scroll_area)
 
-    # --- RESTANTE DO CÓDIGO PERMANECE INTACTO ---
     def load_config(self):
         try:
             if os.path.exists(self.config_file):
