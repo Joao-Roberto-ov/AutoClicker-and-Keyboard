@@ -134,67 +134,21 @@ class AutoUpdater:
 
                 if latest_version > CURRENT_VERSION:
                     msg = QMessageBox()
-                    msg.setWindowTitle("Atualização Obrigatória")
+                    msg.setWindowTitle("Atualização Disponível")
                     msg.setText(
-                        f"Uma nova versão ({latest_version}) está disponível no servidor!\n\nVocê precisa atualizar para continuar utilizando os serviços do programa.")
+                        f"Uma nova versão ({latest_version}) está disponível!\n\nO programa abrirá a página de download no seu navegador.")
                     msg.setIcon(QMessageBox.Icon.Information)
 
-                    btn_update = msg.addButton("Atualizar Agora", QMessageBox.ButtonRole.AcceptRole)
-                    msg.addButton("Sair do Programa", QMessageBox.ButtonRole.RejectRole)
+                    btn_update = msg.addButton("Baixar Atualização", QMessageBox.ButtonRole.AcceptRole)
+                    msg.addButton("Continuar Usando", QMessageBox.ButtonRole.RejectRole)
                     msg.exec()
 
                     if msg.clickedButton() == btn_update:
-                        AutoUpdater.download_and_update(data)
-                    else:
+                        import webbrowser
+                        webbrowser.open(data['html_url'])
                         sys.exit()
         except Exception as e:
             print(f"Erro ao checar atualizações: {e}")
-
-    @staticmethod
-    def download_and_update(release_data):
-        if not getattr(sys, 'frozen', False):
-            msg = QMessageBox()
-            msg.warning(None, "Modo de Desenvolvimento",
-                        "O programa está rodando como script .py e não pode se auto-atualizar.\n\nPara testar isso, compile o programa com o PyInstaller primeiro.")
-            return
-
-        download_url = None
-        for asset in release_data.get('assets', []):
-            if asset['name'] == EXECUTABLE_NAME:
-                download_url = asset['browser_download_url']
-                break
-
-        if not download_url:
-            msg = QMessageBox()
-            msg.critical(None, "Erro Crítico", f"O arquivo {EXECUTABLE_NAME} não foi encontrado no GitHub.")
-            sys.exit()
-
-        try:
-            temp_exe = "update_temp.exe"
-            info = QMessageBox()
-            info.setWindowTitle("Aguarde")
-            info.setText("Baixando atualização... O programa será reiniciado automaticamente em instantes.")
-            info.setStandardButtons(QMessageBox.StandardButton.NoButton)
-            info.show()
-            QApplication.processEvents()
-
-            response = requests.get(download_url, stream=True)
-            with open(temp_exe, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            current_exe = os.path.basename(sys.executable)
-            bat_content = f"""@echo off\ntimeout /t 2 /nobreak > NUL\ndel "{current_exe}"\nren "{temp_exe}" "{current_exe}"\nstart "" "{current_exe}"\ndel "%~f0"\n"""
-            with open("updater.bat", "w") as f:
-                f.write(bat_content)
-
-            subprocess.Popen(["updater.bat"], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            sys.exit()
-
-        except Exception as e:
-            msg = QMessageBox()
-            msg.critical(None, "Erro", f"Ocorreu um erro ao tentar atualizar:\n{e}")
-            sys.exit()
 
 
 
@@ -362,7 +316,7 @@ class MacroAutomator:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Auto Clicker & Keyboard - Perfeito 4.0")
+        self.setWindowTitle("Auto Clicker & Keyboard")
 
         self.resize(850, 600)
         self.setMinimumSize(450, 350)
