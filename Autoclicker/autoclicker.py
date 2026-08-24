@@ -9,7 +9,7 @@ import requests
 
 
 # configurações da atualização atuomatica
-CURRENT_VERSION = "2.0.0"
+CURRENT_VERSION = "3.0.0"
 GITHUB_USER = "Joao-Roberto-ov"
 GITHUB_REPO = "AutoClicker-and-Keyboard"
 EXECUTABLE_NAME = "AutoClicker.exe"
