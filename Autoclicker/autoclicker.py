@@ -1,9 +1,18 @@
+import shutil
 import sys
+import time
+import threading
+import json
 import os
 import subprocess
-import json
-import shutil
+import requests
 
+
+# configurações da atualização atuomatica
+CURRENT_VERSION = "2.0.0"
+GITHUB_USER = "Joao-Roberto-ov"
+GITHUB_REPO = "AutoClicker-and-Keyboard"
+EXECUTABLE_NAME = "AutoClicker.exe"
 
 
 # bootstrap: verificador de ambiente e auto-compilador
@@ -16,13 +25,12 @@ def check_and_compile():
     if is_running_as_exe():
         return
 
-    import tkinter as tk
-    from tkinter import messagebox
-
+    # Adicionei o 'requests' aqui também para garantir que o AutoUpdater funcione
     REQUIRED_MODULES = {
         'PyQt6': 'PyQt6',
         'pynput': 'pynput',
-        'PyInstaller': 'pyinstaller'
+        'PyInstaller': 'pyinstaller',
+        'requests': 'requests'
     }
 
     missing = []
@@ -36,22 +44,18 @@ def check_and_compile():
             missing.append(pip_name)
 
     if missing:
-        root = tk.Tk()
-        root.withdraw()
         missing_str = ", ".join(missing)
-        answer = messagebox.askyesno(
-            "Dependências Ausentes",
-            f"As seguintes dependências são necessárias para o código fonte:\n\n- {missing_str}\n\n"
-            "Deseja baixá-las e instalá-las automaticamente agora para continuar?"
-        )
-        if answer:
+        print(f"\n[AVISO] As seguintes dependências estão ausentes: {missing_str}")
+        answer = input("Deseja baixar e instalar automaticamente agora? (S/N): ").strip().lower()
+
+        if answer == 's':
             try:
                 for lib in missing:
                     subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
-                messagebox.showinfo("Sucesso", "Dependências instaladas com sucesso! Reiniciando...")
+                print("Dependências instaladas com sucesso! Reiniciando o programa...")
                 os.execv(sys.executable, ['python'] + sys.argv)
             except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao instalar:\n{e}")
+                print(f"Erro ao instalar as dependências:\n{e}")
                 sys.exit(1)
         else:
             sys.exit(0)
@@ -59,13 +63,10 @@ def check_and_compile():
     # auto-compilador do .exe
     exe_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist', 'AutoClicker.exe')
     if not os.path.exists(exe_path):
-        root = tk.Tk()
-        root.withdraw()
-        answer = messagebox.askyesno(
-            "Gerar Executável",
-            "Parece que o executável final (.exe) ainda não foi gerado.\nDeseja gerar o .exe de forma automática agora?"
-        )
-        if answer:
+        print("\n[AVISO] O executável final (.exe) ainda não foi gerado.")
+        answer = input("Deseja gerar o .exe de forma automática agora? (S/N): ").strip().lower()
+
+        if answer == 's':
             import PyInstaller.__main__
             script_path = os.path.abspath(__file__)
             PyInstaller.__main__.run([
@@ -75,7 +76,7 @@ def check_and_compile():
                 '--noconfirm',
                 '--name=AutoClicker'
             ])
-            messagebox.showinfo("Concluído", "Executável gerado na pasta 'dist' ao lado deste arquivo!")
+            print("Concluído! O executável foi gerado na pasta 'dist' ao lado deste arquivo!")
 
 
 check_and_compile()
@@ -89,7 +90,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QSpinBox, QDoubleSpinBox,
                              QGroupBox, QPushButton, QListWidget, QTextEdit,
                              QInputDialog, QMessageBox, QCheckBox, QFileDialog,
-                             QLineEdit, QSplitter, QScrollArea)  # <- Novas importações aqui
+                             QLineEdit, QSplitter, QScrollArea)
 from PyQt6.QtCore import pyqtSignal, QObject, QTimer, Qt
 from pynput import mouse, keyboard
 
@@ -118,6 +119,83 @@ def str_to_btn(btn_str):
         return getattr(mouse.Button, btn_str.split(".")[1])
     except Exception:
         return mouse.Button.left
+
+
+class AutoUpdater:
+    @staticmethod
+    def check_for_updates():
+        try:
+            url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
+            response = requests.get(url, timeout=5)
+
+            if response.status_code == 200:
+                data = response.json()
+                latest_version = data['tag_name'].replace('v', '')
+
+                if latest_version > CURRENT_VERSION:
+                    msg = QMessageBox()
+                    msg.setWindowTitle("Atualização Obrigatória")
+                    msg.setText(
+                        f"Uma nova versão ({latest_version}) está disponível no servidor!\n\nVocê precisa atualizar para continuar utilizando os serviços do programa.")
+                    msg.setIcon(QMessageBox.Icon.Information)
+
+                    btn_update = msg.addButton("Atualizar Agora", QMessageBox.ButtonRole.AcceptRole)
+                    msg.addButton("Sair do Programa", QMessageBox.ButtonRole.RejectRole)
+                    msg.exec()
+
+                    if msg.clickedButton() == btn_update:
+                        AutoUpdater.download_and_update(data)
+                    else:
+                        sys.exit()
+        except Exception as e:
+            print(f"Erro ao checar atualizações: {e}")
+
+    @staticmethod
+    def download_and_update(release_data):
+        if not getattr(sys, 'frozen', False):
+            msg = QMessageBox()
+            msg.warning(None, "Modo de Desenvolvimento",
+                        "O programa está rodando como script .py e não pode se auto-atualizar.\n\nPara testar isso, compile o programa com o PyInstaller primeiro.")
+            return
+
+        download_url = None
+        for asset in release_data.get('assets', []):
+            if asset['name'] == EXECUTABLE_NAME:
+                download_url = asset['browser_download_url']
+                break
+
+        if not download_url:
+            msg = QMessageBox()
+            msg.critical(None, "Erro Crítico", f"O arquivo {EXECUTABLE_NAME} não foi encontrado no GitHub.")
+            sys.exit()
+
+        try:
+            temp_exe = "update_temp.exe"
+            info = QMessageBox()
+            info.setWindowTitle("Aguarde")
+            info.setText("Baixando atualização... O programa será reiniciado automaticamente em instantes.")
+            info.setStandardButtons(QMessageBox.StandardButton.NoButton)
+            info.show()
+            QApplication.processEvents()
+
+            response = requests.get(download_url, stream=True)
+            with open(temp_exe, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            current_exe = os.path.basename(sys.executable)
+            bat_content = f"""@echo off\ntimeout /t 2 /nobreak > NUL\ndel "{current_exe}"\nren "{temp_exe}" "{current_exe}"\nstart "" "{current_exe}"\ndel "%~f0"\n"""
+            with open("updater.bat", "w") as f:
+                f.write(bat_content)
+
+            subprocess.Popen(["updater.bat"], shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            sys.exit()
+
+        except Exception as e:
+            msg = QMessageBox()
+            msg.critical(None, "Erro", f"Ocorreu um erro ao tentar atualizar:\n{e}")
+            sys.exit()
+
 
 
 class WorkerSignals(QObject):
@@ -688,6 +766,9 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    AutoUpdater.check_for_updates()
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
