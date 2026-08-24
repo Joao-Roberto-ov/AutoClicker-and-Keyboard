@@ -1,0 +1,23 @@
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+
+# Configurações de IDE (PyCharm, VSCode, etc.)
+.idea/
+.vscode/
+
+# Arquivos de Compilação (PyInstaller) e Cache do Python
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+
+# Dados do Usuário / Arquivos de Macro
+macros/
+*.json
+
+# Arquivos Temporários do Auto-Updater
+updater.bat
+update_temp.exe
